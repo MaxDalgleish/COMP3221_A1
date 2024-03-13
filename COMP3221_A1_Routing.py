@@ -44,10 +44,47 @@ class ListeningThread(threading.Thread):
 			# Send the data back to the client
 			conn.close()
 
+class SendingThread(threading.Thread):
+	def __init__(self, node_id, port_no):
+		threading.Thread.__init__(self)
+		self.node_id = node_id
+		self.port_no = port_no
+	
+	def stop(self):
+		self._stop.set()
+	
+	def stopped(self):
+		return self._stop.is_set()
+
+	def run(self):
+		# Create a socket
+		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		s.connect(('localhost', self.port_no))
+
+		# Send the data
+		s.sendall(b'Hello, world')
+
+		# Receive the data
+		data = s.recv(1024)
+		print("Received: ", data.decode("utf-8"))
+
+		# Close the connection
+		s.close()
+
 def main():
 	# Check if the input is valid
 	if not valid_input_check():
 		return
+	
+	listener = ListeningThread("A", 6000)
+	listener.start()
+
+	sender = SendingThread("B", 6000)
+	sender.start()
+
+	
+
+
 
 
 
