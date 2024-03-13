@@ -73,27 +73,52 @@ class SendingThread(threading.Thread):
 			# Send the data
 			s.sendall(b'Hello, world')
 
-			# Receive the data
-			data = s.recv(1024)
-			print("Received: ", data.decode("utf-8"))
-
-			# Close the connection
 			s.close()
+
+class RoutingTable(threading.Thread):
+	def __init__(self, config_file):
+		threading.Thread.__init__(self)
+		self._stop = threading.Event()
+		self.config_file = config_file
+		self.routing_table = {}
+		self.processing_time = 1
+	
+	def stop(self):
+		self._stop.set()
+
+	def stopped(self):
+		return self._stop.is_set()
+	
+	def run(self):
+		while (1):
+			if self.stopped():
+				print(self.name + " is stopping")
+				return
+			try:
+				time.sleep(self.processing_time)
+			except:
+				print("Already interrupted")
+			print("Routing Table: ", self.routing_table)
 
 def main():
 	# Check if the input is valid
 	if not valid_input_check():
 		return
 	
-	listener = ListeningThread("A", 6000, 1)
+	listener = ListeningThread(sys.argv[1], int(sys.argv[2]), 1)
 	listener.start()
 
-	sender = SendingThread("B", 6000)
+	sender = SendingThread(sys.argv[1], int(sys.argv[2]))
 	sender.start()
 
+	router = RoutingTable(sys.argv[3])
+	router.start()
+
+
 	time.sleep(2)
-	listener.stop()
+	router.stop()
 	sender.stop()
+	listener.stop()
 
 
 
