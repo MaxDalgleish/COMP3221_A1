@@ -4,6 +4,7 @@ import threading
 import sys
 import time
 import json
+import signal
 
 MAX_RETRIES = 5
 
@@ -45,13 +46,14 @@ class ListeningThread(threading.Thread):
 				print(self.name + " is stopping")
 				s.close()
 				return
-			try:
-				time.sleep(self.processing_time)
-			except:
-				print("Already interrupted")
+			s.settimeout(3)
 			# Accept the incoming connection
-			conn, addr = s.accept()
-			print("Connection from: ", addr)
+			try:
+				conn, addr = s.accept()
+				print("Connection from: ", addr)
+			except socket.timeout:
+				print("Error: Connection Timed Out")
+				continue
 
 			# Receive the data
 			data = conn.recv(1024)
@@ -102,6 +104,7 @@ class SendingThread(threading.Thread):
 						time.sleep(1)
 				else:
 					print("Error: Maximum retries reached")
+					print(self.name + " is stopping")
 					return
 				
 					# Create a socket
@@ -165,9 +168,14 @@ def valid_input_check():
 		return False
 
 	return True
+
+def signal_handler(sig, frame):
+	print('You pressed Ctrl+C!')
+	raise KeyboardInterrupt
 			
 
 def main():
+	signal.signal(signal.SIGINT, signal_handler)
 	# Check if the input is valid
 	file_data = []
 	if not valid_input_check():
@@ -199,6 +207,7 @@ def main():
 		while(1):
 			pass
 	except KeyboardInterrupt:
+		# End the Program
 		print("Interrupted")
 		sender.stop()
 		listener.stop()
