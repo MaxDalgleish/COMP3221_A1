@@ -3,13 +3,15 @@ import socket
 import threading
 import sys
 import time
+import json
+
+MAX_RETRIES = 5
 
 class ListeningThread(threading.Thread):
-	def __init__(self, node_id, port_no, processing_time):
+	def __init__(self, port_no, processing_time):
 		threading.Thread.__init__(self)
 		self.processing_time = processing_time
 		self._stop = threading.Event()
-		self.node_id = node_id
 		self.port_no = port_no
 	
 	def stop(self):
@@ -19,10 +21,24 @@ class ListeningThread(threading.Thread):
 		return self._stop.is_set()
 
 	def run(self):
+		print("ListeningThread started")
 		# Create a socket
-		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		s.bind(('localhost', self.port_no))
-		s.listen(9)
+		# Ensure that the socket properly connects to the system
+		retry_count = 0
+		while retry_count < MAX_RETRIES:
+			try: 
+				s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+				s.bind(('localhost', self.port_no))
+				s.listen(9)
+				break
+			except:
+				print("Error: Port already in use")
+				retry_count += 1
+				time.sleep(1)
+		else:
+			print("Error: Maximum retries reached")
+			return
+
 
 		while True:
 			if self.stopped():
@@ -46,12 +62,13 @@ class ListeningThread(threading.Thread):
 			# Send the data back to the client
 			conn.close()
 
+
 class SendingThread(threading.Thread):
-	def __init__(self, node_id, port_no):
+	def __init__(self, neighbours, node_id):
 		threading.Thread.__init__(self)
 		self._stop = threading.Event()
+		self.neighbours = neighbours
 		self.node_id = node_id
-		self.port_no = port_no
 	
 	def stop(self):
 		self._stop.set()
@@ -60,26 +77,45 @@ class SendingThread(threading.Thread):
 		return self._stop.is_set()
 
 	def run(self):
-
+		print("SendingThread started")
 		while (1):
+			# Threading stopping should be before the intialization of the socket
+			# Otherwise socket connects to a non-existing port
 			if self.stopped():
 				print(self.name + " is stopping")
 				return
-			
-				# Create a socket
-			s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-			s.connect(('localhost', self.port_no))
 
-			# Send the data
-			s.sendall(b'Hello, world')
+			# Wait the Mandatory 10 seconds before sending a message
+			time.sleep(10)
+			for neighbour in self.neighbours:
 
-			s.close()
+				s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+				# Ensure that the socket properly connects to the system
+				retry_count = 0
+				while retry_count < MAX_RETRIES:
+					try: 
+						s.connect(('localhost', int(self.neighbours[neighbour][1])))
+						break
+					except:
+						print("Error: Connection Failed")
+						retry_count += 1
+						time.sleep(1)
+				else:
+					print("Error: Maximum retries reached")
+					return
+				
+					# Create a socket
+				time.sleep(1)
+				# Send the data
+				s.sendall(b'Sending from ' + self.node_id.encode("utf-8"))
+				s.close()
+
 
 class RoutingTable(threading.Thread):
-	def __init__(self, config_file):
+	def __init__(self, neighbours):
 		threading.Thread.__init__(self)
 		self._stop = threading.Event()
-		self.config_file = config_file
+		self.neighbours = neighbours
 		self.routing_table = {}
 		self.processing_time = 1
 	
@@ -90,41 +126,12 @@ class RoutingTable(threading.Thread):
 		return self._stop.is_set()
 	
 	def run(self):
+		print("RoutingTable started")
 		while (1):
 			if self.stopped():
 				print(self.name + " is stopping")
 				return
-			try:
-				time.sleep(self.processing_time)
-			except:
-				print("Already interrupted")
-			print("Routing Table: ", self.routing_table)
-
-def main():
-	# Check if the input is valid
-	if not valid_input_check():
-		return
-	
-	listener = ListeningThread(sys.argv[1], int(sys.argv[2]), 1)
-	listener.start()
-
-	sender = SendingThread(sys.argv[1], int(sys.argv[2]))
-	sender.start()
-
-	router = RoutingTable(sys.argv[3])
-	router.start()
-
-
-	time.sleep(2)
-	router.stop()
-	sender.stop()
-	listener.stop()
-
-
-
-
-
-
+		
 
 def valid_input_check():
 	# Read the command line arguments <Node-ID> <Port-NO> <Node-ConfigFile>
@@ -152,13 +159,57 @@ def valid_input_check():
 
 	# Read the configuration file
 	try:
-		with open(config_file, "r") as f:
-			lines = f.readlines()
+		open(config_file, "r")
 	except FileNotFoundError:
 		print("Error: File not found")
 		return False
 
 	return True
+			
+
+def main():
+	# Check if the input is valid
+	file_data = []
+	if not valid_input_check():
+		return
+	node_id, port_no, config_file = sys.argv[1], sys.argv[2], sys.argv[3]
+
+	neighbours = {}
+	file_data = []
+	for line in open(config_file, "r"):
+		file_data.append(line.strip())
+	
+	for line in file_data[1:]:
+		line = line.split()
+		neighbours[line[0]] = [line[1], line[2]]
+	
+	# Parse the configuration file
+	
+	
+	listener = ListeningThread(int(port_no), 1)
+	listener.start()
+
+	sender = SendingThread(neighbours, node_id)
+	sender.start()
+
+	router = RoutingTable(neighbours)
+	router.start()
+
+	try:
+		while(1):
+			pass
+	except KeyboardInterrupt:
+		print("Interrupted")
+		sender.stop()
+		listener.stop()
+		router.stop()
+		print('here')
+		return
+
+# def parse_config_file(file_data):
+
+
+
 
 if __name__ == "__main__":
 	main()
