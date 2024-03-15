@@ -5,15 +5,17 @@ import sys
 import time
 import json
 import signal
+from queue import Queue
 
 MAX_RETRIES = 5
 
 class ListeningThread(threading.Thread):
-	def __init__(self, port_no, processing_time):
+	def __init__(self, port_no, processing_time, q):
 		threading.Thread.__init__(self)
 		self.processing_time = processing_time
 		self._stop = threading.Event()
 		self.port_no = port_no
+		self.q = q
 	
 	def stop(self):
 		self._stop.set()
@@ -31,19 +33,20 @@ class ListeningThread(threading.Thread):
 				s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 				s.bind(('localhost', self.port_no))
 				s.listen(9)
+				print("Listening on port: ", self.port_no)
 				break
 			except:
 				print("Error: Port already in use")
 				retry_count += 1
 				time.sleep(1)
 		else:
-			print("Error: Maximum retries reached")
+			print("Error: Maximum retries reached listen")
 			return
 
 
 		while True:
 			if self.stopped():
-				print(self.name + " is stopping")
+				print(self.name + " is stopping listen")
 				s.close()
 				return
 			s.settimeout(3)
@@ -52,7 +55,7 @@ class ListeningThread(threading.Thread):
 				conn, addr = s.accept()
 				print("Connection from: ", addr)
 			except socket.timeout:
-				print("Error: Connection Timed Out")
+				print("Error: Connection Timed Out listen")
 				continue
 
 			# Receive the data
@@ -60,6 +63,8 @@ class ListeningThread(threading.Thread):
 			if not data:
 				break
 			print("Received: ", data.decode("utf-8"))
+
+			self.q.put(data.decode("utf-8"))
 
 			# Send the data back to the client
 			conn.close()
@@ -84,7 +89,7 @@ class SendingThread(threading.Thread):
 			# Threading stopping should be before the intialization of the socket
 			# Otherwise socket connects to a non-existing port
 			if self.stopped():
-				print(self.name + " is stopping")
+				print(self.name + " is stopping sending1")
 				return
 
 			# Wait the Mandatory 10 seconds before sending a message
@@ -95,32 +100,36 @@ class SendingThread(threading.Thread):
 				# Ensure that the socket properly connects to the system
 				retry_count = 0
 				while retry_count < MAX_RETRIES:
-					try: 
-						s.connect(('localhost', int(self.neighbours[neighbour][1])))
-						break
-					except:
-						print("Error: Connection Failed")
-						retry_count += 1
-						time.sleep(1)
+					for data in self.neighbours.values():
+						print("try: ", data[1])
+						try: 
+							s.connect(('localhost', int(data[1])))
+							print("Connected to: ", data[1])
+							# s.connect(('localhost', int(self.neighbours[neighbour][1])))
+						except:
+							print("Error: Connection Failed sending")
+							retry_count += 1
+							time.sleep(1)
 				else:
-					print("Error: Maximum retries reached")
-					print(self.name + " is stopping")
+					print("Error: Maximum retries reached sending")
+					print(self.name + " is stopping sending2")
 					return
 				
 					# Create a socket
 				time.sleep(1)
 				# Send the data
-				s.sendall(b'Sending from ' + self.node_id.encode("utf-8"))
+				s.sendall(b'Sending from ' + self.node_id.encode("utf-8") + b' to ' + neighbour.encode("utf-8") + b' ' + self.neighbours[neighbour][0].encode("utf-8"))
 				s.close()
 
 
 class RoutingTable(threading.Thread):
-	def __init__(self, neighbours):
+	def __init__(self, neighbours, q):
 		threading.Thread.__init__(self)
 		self._stop = threading.Event()
 		self.neighbours = neighbours
 		self.routing_table = {}
 		self.processing_time = 1
+		self.q = q
 	
 	def stop(self):
 		self._stop.set()
@@ -130,11 +139,23 @@ class RoutingTable(threading.Thread):
 	
 	def run(self):
 		print("RoutingTable started")
+
 		while (1):
 			if self.stopped():
 				print(self.name + " is stopping")
 				return
-		
+			
+			# Wait for soemthing to be put in the queue
+			if self.q.empty():
+				pass
+			else:
+				data = self.q.get()
+				self.calculate(data)
+
+	def calculate(self, data):
+		print("Calculating")
+		print(data)
+
 
 def valid_input_check():
 	# Read the command line arguments <Node-ID> <Port-NO> <Node-ConfigFile>
@@ -177,7 +198,6 @@ def signal_handler(sig, frame):
 def main():
 	signal.signal(signal.SIGINT, signal_handler)
 	# Check if the input is valid
-	file_data = []
 	if not valid_input_check():
 		return
 	node_id, port_no, config_file = sys.argv[1], sys.argv[2], sys.argv[3]
@@ -192,16 +212,18 @@ def main():
 		neighbours[line[0]] = [line[1], line[2]]
 	
 	# Parse the configuration file
+		
+	# create queue for thread communication
+	q = Queue()
 	
+	router = RoutingTable(neighbours , q=q)
+	router.start()
 	
-	listener = ListeningThread(int(port_no), 1)
+	listener = ListeningThread(int(port_no), 1, q=q)
 	listener.start()
 
 	sender = SendingThread(neighbours, node_id)
 	sender.start()
-
-	router = RoutingTable(neighbours)
-	router.start()
 
 	try:
 		while(1):
@@ -209,10 +231,9 @@ def main():
 	except KeyboardInterrupt:
 		# End the Program
 		print("Interrupted")
-		sender.stop()
-		listener.stop()
 		router.stop()
-		print('here')
+		listener.stop()
+		sender.stop()
 		return
 
 # def parse_config_file(file_data):
