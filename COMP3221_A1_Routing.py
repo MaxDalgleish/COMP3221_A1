@@ -94,32 +94,31 @@ class SendingThread(threading.Thread):
 
 			# Wait the Mandatory 10 seconds before sending a message
 			time.sleep(10)
-			for neighbour in self.neighbours:
 
-				s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-				# Ensure that the socket properly connects to the system
-				retry_count = 0
-				while retry_count < MAX_RETRIES:
-					for data in self.neighbours.values():
-						print("try: ", data[1])
-						try: 
-							s.connect(('localhost', int(data[1])))
-							print("Connected to: ", data[1])
-							# s.connect(('localhost', int(self.neighbours[neighbour][1])))
-						except:
-							print("Error: Connection Failed sending")
-							retry_count += 1
-							time.sleep(1)
-				else:
-					print("Error: Maximum retries reached sending")
-					print(self.name + " is stopping sending2")
-					return
-				
-					# Create a socket
-				time.sleep(1)
-				# Send the data
-				s.sendall(b'Sending from ' + self.node_id.encode("utf-8") + b' to ' + neighbour.encode("utf-8") + b' ' + self.neighbours[neighbour][0].encode("utf-8"))
-				s.close()
+			s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+			# Ensure that the socket properly connects to the system
+			retry_count = 0
+			while retry_count < MAX_RETRIES:
+				for data in self.neighbours.values():
+					print("try: ", data[1])
+					try: 
+						s.connect(('localhost', int(data[1])))
+						print("Connected to: ", data[1])
+						time.sleep(1)
+						# Send the data
+						s.sendall(b'Sending from ' + self.node_id.encode("utf-8"))
+						s.close()
+						
+					except:
+						print("Error: Connection Failed sending")
+						retry_count += 1
+						time.sleep(1)
+			else:
+				print("Error: Maximum retries reached sending")
+				print(self.name + " is stopping sending2")
+				return
+
+		
 
 
 class RoutingTable(threading.Thread):
@@ -154,7 +153,6 @@ class RoutingTable(threading.Thread):
 
 	def calculate(self, data):
 		print("Calculating")
-		print(data)
 
 
 def valid_input_check():
