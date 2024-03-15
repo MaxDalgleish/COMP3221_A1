@@ -33,7 +33,6 @@ class ListeningThread(threading.Thread):
 				s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 				s.bind(('localhost', self.port_no))
 				s.listen(9)
-				print("Listening on port: ", self.port_no)
 				break
 			except:
 				print("Error: Port already in use")
@@ -95,28 +94,36 @@ class SendingThread(threading.Thread):
 			# Wait the Mandatory 10 seconds before sending a message
 			time.sleep(10)
 
-			s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 			# Ensure that the socket properly connects to the system
 			retry_count = 0
 			while retry_count < MAX_RETRIES:
 				for data in self.neighbours.values():
-					print("try: ", data[1])
 					try: 
+						# Create a socket and connect
+						s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 						s.connect(('localhost', int(data[1])))
-						print("Connected to: ", data[1])
-						time.sleep(1)
-						# Send the data
-						s.sendall(b'Sending from ' + self.node_id.encode("utf-8"))
-						s.close()
+						# print("Connected to: " + data[1] + " from " + self.node_id)
 						
+						time.sleep(1)
+						
+						# Send the data
+						s.sendall(self.node_id.encode("utf-8") + " " + data[0].encode("utf-8"))
+
+						# close the connection
+						s.close()
+							
 					except:
 						print("Error: Connection Failed sending")
 						retry_count += 1
 						time.sleep(1)
+					continue
+
 			else:
 				print("Error: Maximum retries reached sending")
 				print(self.name + " is stopping sending2")
 				return
+			
+			
 
 		
 
