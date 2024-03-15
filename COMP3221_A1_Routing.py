@@ -59,7 +59,8 @@ class ListeningThread(threading.Thread):
 			data = conn.recv(1024)
 			if not data:
 				break
-			print("Received: ", data.decode("utf-8"))
+			print("Received: ", data.decode("utf-8"), end="")
+			print(" arriving at ", self.port_no)
 
 			# Send the data back to the client
 			conn.close()
