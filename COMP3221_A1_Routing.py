@@ -102,7 +102,7 @@ class SendingThread(threading.Thread):
 						# Create a socket and connect
 						s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 						s.connect(('localhost', int(data[1])))
-						# print("Connected to: " + data[1] + " from " + self.node_id)
+						print("Connected to: " + data[1] + " from " + self.node_id)
 						
 						time.sleep(1)
 						
