@@ -52,9 +52,9 @@ class ListeningThread(threading.Thread):
 			# Accept the incoming connection
 			try:
 				conn, addr = s.accept()
-				print("Connection from: ", addr)
+				#print("Connection from: ", addr)
 			except socket.timeout:
-				print("Error: Connection Timed Out listen")
+				#print("Error: Connection Timed Out listen")
 				continue
 
 			# Receive the data
@@ -106,8 +106,6 @@ class SendingThread(threading.Thread):
 					s.connect(('localhost', int(data[1])))
 					print("Connected to: " + data[1] + " from " + self.node_id)
 					
-					time.sleep(1)
-					
 					# Send the data
 					s.sendall(self.node_id.encode("utf-8") + data[0].encode("utf-8"))
 
@@ -115,7 +113,7 @@ class SendingThread(threading.Thread):
 					s.close()
 						
 				except:
-					print("Error: Connection Failed sending")
+					#print("Error: Connection Failed sending")
 					retry_count += 1
 					time.sleep(1)
 				continue
@@ -125,10 +123,6 @@ class SendingThread(threading.Thread):
 			# 	print(self.name + " is stopping sending2")
 			# 	return
 			
-			
-
-		
-
 
 class RoutingTable(threading.Thread):
 	def __init__(self, neighbours, q, node_id):
@@ -162,8 +156,7 @@ class RoutingTable(threading.Thread):
 				self.calculate(data)
 
 	def calculate(self, data):
-		print(self.node_id + " Calculating")
-		print(data)
+		print(self.node_id + " Calculating: " + data)
 
 
 def valid_input_check():
