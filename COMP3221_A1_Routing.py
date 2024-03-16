@@ -96,32 +96,34 @@ class SendingThread(threading.Thread):
 
 			# Ensure that the socket properly connects to the system
 			retry_count = 0
-			while retry_count < MAX_RETRIES:
-				for data in self.neighbours.values():
-					try: 
-						# Create a socket and connect
-						s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-						s.connect(('localhost', int(data[1])))
-						print("Connected to: " + data[1] + " from " + self.node_id)
-						
-						time.sleep(1)
-						
-						# Send the data
-						s.sendall(self.node_id.encode("utf-8") + " " + data[0].encode("utf-8"))
+			# while retry_count < MAX_RETRIES:
+			
+			for data in self.neighbours.values():
+				print("Trying " + data[1] + " from " + self.node_id)
+				try: 
+					# Create a socket and connect
+					s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+					s.connect(('localhost', int(data[1])))
+					print("Connected to: " + data[1] + " from " + self.node_id)
+					
+					time.sleep(1)
+					
+					# Send the data
+					s.sendall(self.node_id.encode("utf-8") + data[0].encode("utf-8"))
 
-						# close the connection
-						s.close()
-							
-					except:
-						print("Error: Connection Failed sending")
-						retry_count += 1
-						time.sleep(1)
-					continue
+					# close the connection
+					s.close()
+						
+				except:
+					print("Error: Connection Failed sending")
+					retry_count += 1
+					time.sleep(1)
+				continue
 
-			else:
-				print("Error: Maximum retries reached sending")
-				print(self.name + " is stopping sending2")
-				return
+			# else:
+			# 	print("Error: Maximum retries reached sending")
+			# 	print(self.name + " is stopping sending2")
+			# 	return
 			
 			
 
@@ -129,13 +131,14 @@ class SendingThread(threading.Thread):
 
 
 class RoutingTable(threading.Thread):
-	def __init__(self, neighbours, q):
+	def __init__(self, neighbours, q, node_id):
 		threading.Thread.__init__(self)
 		self._stop = threading.Event()
 		self.neighbours = neighbours
 		self.routing_table = {}
 		self.processing_time = 1
 		self.q = q
+		self.node_id = node_id
 	
 	def stop(self):
 		self._stop.set()
@@ -159,7 +162,8 @@ class RoutingTable(threading.Thread):
 				self.calculate(data)
 
 	def calculate(self, data):
-		print("Calculating")
+		print(self.node_id + " Calculating")
+		print(data)
 
 
 def valid_input_check():
@@ -221,10 +225,10 @@ def main():
 	# create queue for thread communication
 	q = Queue()
 	
-	router = RoutingTable(neighbours , q=q)
+	router = RoutingTable(neighbours , q, node_id)
 	router.start()
 	
-	listener = ListeningThread(int(port_no), 1, q=q)
+	listener = ListeningThread(int(port_no), 1, q)
 	listener.start()
 
 	sender = SendingThread(neighbours, node_id)
