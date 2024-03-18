@@ -52,30 +52,33 @@ class ListeningThread(threading.Thread):
 			# Accept the incoming connection
 			try:
 				conn, addr = s.accept()
-				#print("Connection from: ", addr)
+				# print("Connection from: ", addr)
 			except socket.timeout:
-				#print("Error: Connection Timed Out listen")
+				# print("Error: Connection Timed Out listen")
 				continue
 
 			# Receive the data
-			data = conn.recv(1024)
+			data = conn.recv(1024).decode("utf-8")
+			data = json.loads(data)
 			if not data:
+				print("Error: No data received listen")
 				break
-			print("Received: ", data.decode("utf-8"), end="")
+			print("Received: ", data)
 			print(" arriving at ", self.port_no)
 
-			self.q.put(data.decode("utf-8"))
+			self.q.put(data)
 
 			# Send the data back to the client
 			conn.close()
 
 
 class SendingThread(threading.Thread):
-	def __init__(self, neighbours, node_id):
+	def __init__(self, neighbours, node_id , routing_table):
 		threading.Thread.__init__(self)
 		self._stop = threading.Event()
 		self.neighbours = neighbours
 		self.node_id = node_id
+		self.routing_table = routing_table
 	
 	def stop(self):
 		self._stop.set()
@@ -107,8 +110,17 @@ class SendingThread(threading.Thread):
 					s.connect(('localhost', int(data[1])))
 					print("Connected to: " + data[1] + " from " + self.node_id)
 					
-					# Send the data
-					s.sendall(self.node_id.encode("utf-8") + data[0].encode("utf-8"))
+					# put routing tablen into list
+					routing_list = [(key, value['distance']) for key, value in self.routing_table.items()]
+
+					# Sort the list by putting sending node at start
+					routing_list.sort(key=lambda x: (x[0] != self.node_id, x[0]))
+
+					# Convert the list to json
+					routing_json = json.dumps(routing_list)
+
+					# Send the routiong table data
+					s.sendall(routing_json.encode("utf-8"))
 
 					# close the connection
 					s.close()
@@ -118,22 +130,17 @@ class SendingThread(threading.Thread):
 					retry_count += 1
 					time.sleep(1)
 				continue
-
-			# else:
-			# 	print("Error: Maximum retries reached sending")
-			# 	print(self.name + " is stopping sending2")
-			# 	return
 			
 
 class RoutingTable(threading.Thread):
-	def __init__(self, neighbours, q, node_id):
+	def __init__(self, neighbours, q, node_id, routing_table):
 		threading.Thread.__init__(self)
 		self._stop = threading.Event()
 		self.neighbours = neighbours
-		self.routing_table = {}
 		self.processing_time = 1
 		self.q = q
 		self.node_id = node_id
+		self.routing_table = routing_table
 	
 	def stop(self):
 		self._stop.set()
@@ -154,10 +161,31 @@ class RoutingTable(threading.Thread):
 				pass
 			else:
 				data = self.q.get()
-				self.calculate(data)
+				self.calculate(data, self.routing_table)
 
-	def calculate(self, data):
-		print(self.node_id + " Calculating: " + data)
+	def calculate(self, data, routing_table):
+		print(self.node_id + " Calculating: ")
+		print(data)
+
+		# Parse the data
+		# put sending node into the routing table
+		sender = data[0]
+		sending_node = sender[0]
+		for node in data:
+			if node[0] == self.node_id:
+				sending_cost = float(node[1])
+		routing_table[sending_node]['distance'] = sending_cost
+		data = data[1:]
+
+		# put sending nodes neighbours into the routing table
+		for neighbour in data:
+			if neighbour[0] == self.node_id:
+				continue
+			node = neighbour[0]
+			cost = float(neighbour[1]) + sending_cost
+			if routing_table[node]['distance'] > cost:
+				routing_table[node]['distance'] = cost
+		print(self.routing_table)
 
 
 def valid_input_check():
@@ -205,6 +233,8 @@ def main():
 		return
 	node_id, port_no, config_file = sys.argv[1], sys.argv[2], sys.argv[3]
 
+	# Parse the configuration file
+
 	neighbours = {}
 	file_data = []
 	for line in open(config_file, "r"):
@@ -213,19 +243,35 @@ def main():
 	for line in file_data[1:]:
 		line = line.split()
 		neighbours[line[0]] = [line[1], line[2]]
-	
-	# Parse the configuration file
+		
+	# Setup routing table
+	routing_table = {
+			'A': {'distance': float('inf')},
+			'B': {'distance': float('inf')},
+			'C': {'distance': float('inf')},
+			'D': {'distance': float('inf')},
+			'E': {'distance': float('inf')},
+			'F': {'distance': float('inf')},
+			'G': {'distance': float('inf')},
+			'H': {'distance': float('inf')},
+			'I': {'distance': float('inf')},
+			'J': {'distance': float('inf')}
+		}
+	routing_table[node_id]['distance'] = 0
+	# input neighbours into the routing table
+	for neighbour in neighbours:
+		routing_table[neighbour]['distance'] = neighbours[neighbour][0]
 		
 	# create queue for thread communication
 	q = Queue()
 	
-	router = RoutingTable(neighbours , q, node_id)
+	router = RoutingTable(neighbours , q, node_id , routing_table)
 	router.start()
 	
 	listener = ListeningThread(int(port_no), 1, q)
 	listener.start()
 
-	sender = SendingThread(neighbours, node_id)
+	sender = SendingThread(neighbours, node_id, routing_table)
 	sender.start()
 
 	try:
