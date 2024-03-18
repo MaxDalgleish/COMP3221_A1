@@ -63,8 +63,8 @@ class ListeningThread(threading.Thread):
 			if not data:
 				print("Error: No data received listen")
 				break
-			print("Received: ", data)
-			print(" arriving at ", self.port_no)
+			# print("Received: ", data)
+			# print(" arriving at ", self.port_no)
 
 			self.q.put(data)
 
@@ -103,12 +103,12 @@ class SendingThread(threading.Thread):
 			# while retry_count < MAX_RETRIES:
 			
 			for data in self.neighbours.values():
-				print("Trying " + data[1] + " from " + self.node_id)
+				# print("Trying " + data[1] + " from " + self.node_id)
 				try: 
 					# Create a socket and connect
 					s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 					s.connect(('localhost', int(data[1])))
-					print("Connected to: " + data[1] + " from " + self.node_id)
+					# print("Connected to: " + data[1] + " from " + self.node_id)
 					
 					# put routing tablen into list
 					routing_list = [(key, value['distance']) for key, value in self.routing_table.items()]
@@ -164,11 +164,15 @@ class RoutingTable(threading.Thread):
 				self.calculate(data, self.routing_table)
 
 	def calculate(self, data, routing_table):
-		print(self.node_id + " Calculating: ")
-		print(data)
+		# print(self.node_id + " Calculating: ")
+		# print(data)
 
 		# Parse the data
 		# put sending node into the routing table
+		print(data)
+		data = [(node, float(distance)) for node, distance in data]
+		print(data)
+
 		sender = data[0]
 		sending_node = sender[0]
 		for node in data:
@@ -181,10 +185,13 @@ class RoutingTable(threading.Thread):
 		for neighbour in data:
 			if neighbour[0] == self.node_id:
 				continue
+			if neighbour[1] == float('inf'):
+				continue
 			node = neighbour[0]
-			cost = float(neighbour[1]) + sending_cost
-			if routing_table[node]['distance'] > cost:
-				routing_table[node]['distance'] = cost
+			cost = float(neighbour[1]) + float(sending_cost)
+			print("Node: " + node + " Cost: " + str(cost))
+			if routing_table[node]['distance'] > float(cost):
+				routing_table[node]['distance'] = float(cost)
 		print(self.routing_table)
 
 
@@ -246,16 +253,16 @@ def main():
 		
 	# Setup routing table
 	routing_table = {
-			'A': {'distance': float('inf')},
-			'B': {'distance': float('inf')},
-			'C': {'distance': float('inf')},
-			'D': {'distance': float('inf')},
-			'E': {'distance': float('inf')},
-			'F': {'distance': float('inf')},
-			'G': {'distance': float('inf')},
-			'H': {'distance': float('inf')},
-			'I': {'distance': float('inf')},
-			'J': {'distance': float('inf')}
+			'A': {'distance':float('inf')},
+			'B': {'distance':float('inf')},
+			'C': {'distance':float('inf')},
+			'D': {'distance':float('inf')},
+			'E': {'distance':float('inf')},
+			'F': {'distance':float('inf')},
+			'G': {'distance':float('inf')},
+			'H': {'distance':float('inf')},
+			'I': {'distance':float('inf')},
+			'J': {'distance':float('inf')}
 		}
 	routing_table[node_id]['distance'] = 0
 	# input neighbours into the routing table
