@@ -8,11 +8,12 @@ import signal
 from queue import Queue
 
 MAX_RETRIES = 5
+Node_up = True
+
 
 class ListeningThread(threading.Thread):
-	def __init__(self, port_no, processing_time, q):
+	def __init__(self, port_no, q):
 		threading.Thread.__init__(self)
-		self.processing_time = processing_time
 		self._stop = threading.Event()
 		self.port_no = port_no
 		self.q = q
@@ -48,25 +49,31 @@ class ListeningThread(threading.Thread):
 				print(self.name + " is stopping listen")
 				s.close()
 				return
+			# Checking if the Node should be Receiving messages
+			if not Node_up:
+				continue
 			s.settimeout(3)
 			# Accept the incoming connection
 			try:
 				conn, addr = s.accept()
 				# print("Connection from: ", addr)
 			except socket.timeout:
-				# print("Error: Connection Timed Out listen")
 				continue
 
 			# Receive the data
-			data = conn.recv(1024).decode("utf-8")
-			data = json.loads(data)
+			data = json.loads(conn.recv(1024).decode())
 			if not data:
 				print("Error: No data received listen")
 				break
-			# print("Received: ", data)
-			# print(" arriving at ", self.port_no)
 
-			self.q.put(data)
+			# Check if the data being received is from the controller
+			if data['type'] == 'command':
+				print(" Received Command from controller, ", data['command'])
+			else:
+				print("Received: ", data, end="")
+				print(" arriving at ", self.port_no)
+
+				self.q.put(data)
 
 			# Send the data back to the client
 			conn.close()
@@ -94,13 +101,15 @@ class SendingThread(threading.Thread):
 			if self.stopped():
 				print(self.name + " is stopping sending1")
 				return
+			
+			# Check if the Node is currently up
+			if not Node_up:
+				continue
 
 			# Wait the Mandatory 10 seconds before sending a message
 			time.sleep(10)
 
 			# Ensure that the socket properly connects to the system
-			retry_count = 0
-			# while retry_count < MAX_RETRIES:
 			
 			for data in self.neighbours.values():
 				# print("Trying " + data[1] + " from " + self.node_id)
@@ -122,14 +131,14 @@ class SendingThread(threading.Thread):
 					# Send the routiong table data
 					s.sendall(routing_json.encode("utf-8"))
 
-					# close the connection
-					s.close()
 						
+					s.close()
+					break
+							
 				except:
-					#print("Error: Connection Failed sending")
+					print("Error: Connection refused to " + data[1] + " from " + self.node_id + " retrying...")
 					retry_count += 1
-					time.sleep(1)
-				continue
+					time.sleep(0.5)
 			
 
 class RoutingTable(threading.Thread):
@@ -137,7 +146,7 @@ class RoutingTable(threading.Thread):
 		threading.Thread.__init__(self)
 		self._stop = threading.Event()
 		self.neighbours = neighbours
-		self.processing_time = 1
+		self.routing_table = {}
 		self.q = q
 		self.node_id = node_id
 		self.routing_table = routing_table
@@ -281,11 +290,12 @@ def main():
 	router = RoutingTable(neighbours , q, node_id , routing_table)
 	router.start()
 	
-	listener = ListeningThread(int(port_no), 1, q)
+	listener = ListeningThread(int(port_no), q)
 	listener.start()
 
 	sender = SendingThread(neighbours, node_id, routing_table)
 	sender.start()
+
 
 	try:
 		while(1):
@@ -297,9 +307,6 @@ def main():
 		listener.stop()
 		sender.stop()
 		return
-
-# def parse_config_file(file_data):
-
 
 
 
