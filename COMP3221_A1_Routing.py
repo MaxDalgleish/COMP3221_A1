@@ -58,17 +58,21 @@ class ListeningThread(threading.Thread):
 				conn, addr = s.accept()
 				#print("Connection from: ", addr)
 			except socket.timeout:
-				#print("Error: Connection Timed Out listen")
 				continue
 
 			# Receive the data
-			data = conn.recv(1024)
+			data = json.loads(conn.recv(1024).decode())
 			if not data:
 				break
-			print("Received: ", data.decode("utf-8"), end="")
-			print(" arriving at ", self.port_no)
 
-			self.q.put(data.decode("utf-8"))
+			# Check if the data being received is from the controller
+			if data['type'] == 'command':
+				print(" Received Command from controller, ", data['command'])
+			else:
+				print("Received: ", data, end="")
+				print(" arriving at ", self.port_no)
+
+				self.q.put(data)
 
 			# Send the data back to the client
 			conn.close()
@@ -104,33 +108,33 @@ class SendingThread(threading.Thread):
 			time.sleep(10)
 
 			# Ensure that the socket properly connects to the system
-			retry_count = 0
-			# while retry_count < MAX_RETRIES:
 			
-			for data in self.neighbours.values():
-				print("Trying " + data[1] + " from " + self.node_id)
-				try: 
-					# Create a socket and connect
-					s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-					s.connect(('localhost', int(data[1])))
-					print("Connected to: " + data[1] + " from " + self.node_id)
-					
-					# Send the data
-					s.sendall(self.node_id.encode("utf-8") + data[0].encode("utf-8"))
+			for neighbour in self.neighbours.values():
+				retry_count = 0
+				print("Trying " + neighbour[1] + " from " + self.node_id)
+				sending_data = {
+					'port': self.node_id,
+					'type': 'routing'
+				}
+				while (retry_count < MAX_RETRIES):
+					try:
+						# Create a socket and connect
+						s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+						s.connect(('localhost', int(neighbour[1])))
+						print("Connected to: " + neighbour[1] + " from " + self.node_id)
 
-					# close the connection
-					s.close()
 						
-				except:
-					#print("Error: Connection Failed sending")
-					retry_count += 1
-					time.sleep(1)
-				continue
+						# Send the data
+						s.sendall(json.dumps(sending_data).encode())
 
-			# else:
-			# 	print("Error: Maximum retries reached sending")
-			# 	print(self.name + " is stopping sending2")
-			# 	return
+						# close the connection
+						s.close()
+						break
+							
+					except:
+						print("Error: Connection refused to " + neighbour[1] + " from " + self.node_id + " retrying...")
+						retry_count += 1
+						time.sleep(0.5)
 			
 
 class RoutingTable(threading.Thread):
@@ -164,34 +168,8 @@ class RoutingTable(threading.Thread):
 				self.calculate(data)
 
 	def calculate(self, data):
-		print(self.node_id + " Calculating: " + data)
+		print(self.node_id + " Calculating: " + str(data))
 
-# class CommandLineInterface(threading.Thread):
-# 	def __init__(self):
-# 		threading.Thread.__init__(self)
-# 		self._stop = threading.Event()
-	
-# 	def stop(self):
-# 		self._stop.set()
-	
-# 	def stopped(self):
-# 		return self._stop.is_set()
-
-# 	def run(self):
-# 		print("CommandLineInterface started")
-# 		while (1):
-# 			if self.stopped():
-# 				print(self.name + " is stopping")
-# 				return
-# 			command = input("Enter a command: ")
-# 			if command == "stopNode":
-# 				Node_up = False
-# 				print("Node is now down")
-# 			if command == "startNode":
-# 				Node_up = True
-# 				print("Node is now up")
-# 			else:
-# 				print("Invalid Command")
 
 
 def valid_input_check():
@@ -262,8 +240,6 @@ def main():
 	sender = SendingThread(neighbours, node_id)
 	sender.start()
 
-	# cli = CommandLineInterface()
-	# cli.start()
 
 	try:
 		while(1):
@@ -274,11 +250,7 @@ def main():
 		router.stop()
 		listener.stop()
 		sender.stop()
-		# cli.stop()
 		return
-
-# def parse_config_file(file_data):
-
 
 
 
