@@ -56,13 +56,14 @@ class ListeningThread(threading.Thread):
 			# Accept the incoming connection
 			try:
 				conn, addr = s.accept()
-				#print("Connection from: ", addr)
+				# print("Connection from: ", addr)
 			except socket.timeout:
 				continue
 
 			# Receive the data
 			data = json.loads(conn.recv(1024).decode())
 			if not data:
+				print("Error: No data received listen")
 				break
 
 			# Check if the data being received is from the controller
@@ -79,11 +80,12 @@ class ListeningThread(threading.Thread):
 
 
 class SendingThread(threading.Thread):
-	def __init__(self, neighbours, node_id):
+	def __init__(self, neighbours, node_id , routing_table):
 		threading.Thread.__init__(self)
 		self._stop = threading.Event()
 		self.neighbours = neighbours
 		self.node_id = node_id
+		self.routing_table = routing_table
 	
 	def stop(self):
 		self._stop.set()
@@ -109,42 +111,45 @@ class SendingThread(threading.Thread):
 
 			# Ensure that the socket properly connects to the system
 			
-			for neighbour in self.neighbours.values():
-				retry_count = 0
-				print("Trying " + neighbour[1] + " from " + self.node_id)
-				sending_data = {
-					'port': self.node_id,
-					'type': 'routing'
-				}
-				while (retry_count < MAX_RETRIES):
-					try:
-						# Create a socket and connect
-						s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-						s.connect(('localhost', int(neighbour[1])))
-						print("Connected to: " + neighbour[1] + " from " + self.node_id)
+			for data in self.neighbours.values():
+				# print("Trying " + data[1] + " from " + self.node_id)
+				try: 
+					# Create a socket and connect
+					s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+					s.connect(('localhost', int(data[1])))
+					# print("Connected to: " + data[1] + " from " + self.node_id)
+					
+					# put routing tablen into list
+					routing_list = [(key, value['distance']) for key, value in self.routing_table.items()]
+
+					# Sort the list by putting sending node at start
+					routing_list.sort(key=lambda x: (x[0] != self.node_id, x[0]))
+
+					# Convert the list to json
+					routing_json = json.dumps(routing_list)
+
+					# Send the routiong table data
+					s.sendall(routing_json.encode("utf-8"))
 
 						
-						# Send the data
-						s.sendall(json.dumps(sending_data).encode())
-
-						# close the connection
-						s.close()
-						break
+					s.close()
+					break
 							
-					except:
-						print("Error: Connection refused to " + neighbour[1] + " from " + self.node_id + " retrying...")
-						retry_count += 1
-						time.sleep(0.5)
+				except:
+					print("Error: Connection refused to " + data[1] + " from " + self.node_id + " retrying...")
+					retry_count += 1
+					time.sleep(0.5)
 			
 
 class RoutingTable(threading.Thread):
-	def __init__(self, neighbours, q, node_id):
+	def __init__(self, neighbours, q, node_id, routing_table):
 		threading.Thread.__init__(self)
 		self._stop = threading.Event()
 		self.neighbours = neighbours
 		self.routing_table = {}
 		self.q = q
 		self.node_id = node_id
+		self.routing_table = routing_table
 	
 	def stop(self):
 		self._stop.set()
@@ -165,11 +170,40 @@ class RoutingTable(threading.Thread):
 				pass
 			else:
 				data = self.q.get()
-				self.calculate(data)
+				self.calculate(data, self.routing_table)
 
-	def calculate(self, data):
-		print(self.node_id + " Calculating: " + str(data))
+	def calculate(self, data, routing_table):
+		# print(self.node_id + " Calculating: ")
+		# print(data)
 
+		# Parse the data
+		# put sending node into the routing table
+		# print(data)
+		# data = [(node, float(distance)) for node, distance in data]
+		# print(data)
+
+		sender = data[0]
+		sending_node = sender[0]
+		for node in data[1:]:
+			if node[0] == self.node_id:
+				sending_cost = float(node[1])
+				break
+		routing_table[sending_node]['distance'] = sending_cost
+		data = data[1:]
+
+		# put sending nodes neighbours into the routing table
+		for neighbour in data:
+			if neighbour[0] == self.node_id:
+				continue
+			if neighbour[1] == float('inf'):
+				continue
+			node = neighbour[0]
+			cost = float(neighbour[1]) + float(sending_cost)
+			if routing_table[node]['distance'] > float(cost):
+				routing_table[node]['distance'] = float(cost)
+				print("Node: " + node + " Cost: " + str(cost))
+				print("Routing Table: " + self.node_id)
+				print(self.routing_table)
 
 
 def valid_input_check():
@@ -217,6 +251,8 @@ def main():
 		return
 	node_id, port_no, config_file = sys.argv[1], sys.argv[2], sys.argv[3]
 
+	# Parse the configuration file
+
 	neighbours = {}
 	file_data = []
 	for line in open(config_file, "r"):
@@ -225,19 +261,39 @@ def main():
 	for line in file_data[1:]:
 		line = line.split()
 		neighbours[line[0]] = [line[1], line[2]]
-	
-	# Parse the configuration file
+		
+	# Setup routing table
+	routing_table = {
+			'A': {'distance':float('inf')},
+			'B': {'distance':float('inf')},
+			'C': {'distance':float('inf')},
+			'D': {'distance':float('inf')},
+			'E': {'distance':float('inf')},
+			'F': {'distance':float('inf')},
+			'G': {'distance':float('inf')},
+			'H': {'distance':float('inf')},
+			'I': {'distance':float('inf')},
+			'J': {'distance':float('inf')}
+		}
+	routing_table[node_id]['distance'] = float(0)
+	# input neighbours into the routing table
+	for neighbour in neighbours:
+		routing_table[neighbour]['distance'] = float(neighbours[neighbour][0])
+
+	# inital routing table
+	print("Initial Routing Table " + node_id)
+	print(routing_table)
 		
 	# create queue for thread communication
 	q = Queue()
 	
-	router = RoutingTable(neighbours , q, node_id)
+	router = RoutingTable(neighbours , q, node_id , routing_table)
 	router.start()
 	
 	listener = ListeningThread(int(port_no), q)
 	listener.start()
 
-	sender = SendingThread(neighbours, node_id)
+	sender = SendingThread(neighbours, node_id, routing_table)
 	sender.start()
 
 
