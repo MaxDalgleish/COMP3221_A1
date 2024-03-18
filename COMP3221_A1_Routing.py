@@ -63,8 +63,8 @@ class ListeningThread(threading.Thread):
 			if not data:
 				print("Error: No data received listen")
 				break
-			print("Received: ", data)
-			print(" arriving at ", self.port_no)
+			# print("Received: ", data)
+			# print(" arriving at ", self.port_no)
 
 			self.q.put(data)
 
@@ -169,15 +169,16 @@ class RoutingTable(threading.Thread):
 
 		# Parse the data
 		# put sending node into the routing table
-		print(data)
-		data = [(node, float(distance)) for node, distance in data]
-		print(data)
+		# print(data)
+		# data = [(node, float(distance)) for node, distance in data]
+		# print(data)
 
 		sender = data[0]
 		sending_node = sender[0]
-		for node in data:
+		for node in data[1:]:
 			if node[0] == self.node_id:
 				sending_cost = float(node[1])
+				break
 		routing_table[sending_node]['distance'] = sending_cost
 		data = data[1:]
 
@@ -189,10 +190,11 @@ class RoutingTable(threading.Thread):
 				continue
 			node = neighbour[0]
 			cost = float(neighbour[1]) + float(sending_cost)
-			print("Node: " + node + " Cost: " + str(cost))
 			if routing_table[node]['distance'] > float(cost):
 				routing_table[node]['distance'] = float(cost)
-		print(self.routing_table)
+				print("Node: " + node + " Cost: " + str(cost))
+				print("Routing Table: " + self.node_id)
+				print(self.routing_table)
 
 
 def valid_input_check():
@@ -264,10 +266,14 @@ def main():
 			'I': {'distance':float('inf')},
 			'J': {'distance':float('inf')}
 		}
-	routing_table[node_id]['distance'] = 0
+	routing_table[node_id]['distance'] = float(0)
 	# input neighbours into the routing table
 	for neighbour in neighbours:
-		routing_table[neighbour]['distance'] = neighbours[neighbour][0]
+		routing_table[neighbour]['distance'] = float(neighbours[neighbour][0])
+
+	# inital routing table
+	print("Initial Routing Table " + node_id)
+	print(routing_table)
 		
 	# create queue for thread communication
 	q = Queue()
