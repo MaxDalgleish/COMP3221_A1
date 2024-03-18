@@ -8,11 +8,12 @@ import signal
 from queue import Queue
 
 MAX_RETRIES = 5
+Node_up = True
+
 
 class ListeningThread(threading.Thread):
-	def __init__(self, port_no, processing_time, q):
+	def __init__(self, port_no, q):
 		threading.Thread.__init__(self)
-		self.processing_time = processing_time
 		self._stop = threading.Event()
 		self.port_no = port_no
 		self.q = q
@@ -48,6 +49,9 @@ class ListeningThread(threading.Thread):
 				print(self.name + " is stopping listen")
 				s.close()
 				return
+			# Checking if the Node should be Receiving messages
+			if not Node_up:
+				continue
 			s.settimeout(3)
 			# Accept the incoming connection
 			try:
@@ -91,6 +95,10 @@ class SendingThread(threading.Thread):
 			if self.stopped():
 				print(self.name + " is stopping sending1")
 				return
+			
+			# Check if the Node is currently up
+			if not Node_up:
+				continue
 
 			# Wait the Mandatory 10 seconds before sending a message
 			time.sleep(10)
@@ -131,7 +139,6 @@ class RoutingTable(threading.Thread):
 		self._stop = threading.Event()
 		self.neighbours = neighbours
 		self.routing_table = {}
-		self.processing_time = 1
 		self.q = q
 		self.node_id = node_id
 	
@@ -158,6 +165,33 @@ class RoutingTable(threading.Thread):
 
 	def calculate(self, data):
 		print(self.node_id + " Calculating: " + data)
+
+# class CommandLineInterface(threading.Thread):
+# 	def __init__(self):
+# 		threading.Thread.__init__(self)
+# 		self._stop = threading.Event()
+	
+# 	def stop(self):
+# 		self._stop.set()
+	
+# 	def stopped(self):
+# 		return self._stop.is_set()
+
+# 	def run(self):
+# 		print("CommandLineInterface started")
+# 		while (1):
+# 			if self.stopped():
+# 				print(self.name + " is stopping")
+# 				return
+# 			command = input("Enter a command: ")
+# 			if command == "stopNode":
+# 				Node_up = False
+# 				print("Node is now down")
+# 			if command == "startNode":
+# 				Node_up = True
+# 				print("Node is now up")
+# 			else:
+# 				print("Invalid Command")
 
 
 def valid_input_check():
@@ -222,11 +256,14 @@ def main():
 	router = RoutingTable(neighbours , q, node_id)
 	router.start()
 	
-	listener = ListeningThread(int(port_no), 1, q)
+	listener = ListeningThread(int(port_no), q)
 	listener.start()
 
 	sender = SendingThread(neighbours, node_id)
 	sender.start()
+
+	# cli = CommandLineInterface()
+	# cli.start()
 
 	try:
 		while(1):
@@ -237,6 +274,7 @@ def main():
 		router.stop()
 		listener.stop()
 		sender.stop()
+		# cli.stop()
 		return
 
 # def parse_config_file(file_data):
