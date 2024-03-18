@@ -63,8 +63,8 @@ class ListeningThread(threading.Thread):
 			if not data:
 				print("Error: No data received listen")
 				break
-			# print("Received: ", data)
-			# print(" arriving at ", self.port_no)
+			print("Received: ", data)
+			print(" arriving at ", self.port_no)
 
 			self.q.put(data)
 
