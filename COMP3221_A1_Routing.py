@@ -180,14 +180,9 @@ class RoutingTable(threading.Thread):
 				self.calculate(data, self.routing_table)
 
 	def calculate(self, data, routing_table):
-		# print(self.node_id + " Calculating: ")
-		# print(data)
-
-		# Parse the data
-		# put sending node into the routing table
-		# print(data)
-		# data = [(node, float(distance)) for node, distance in data]
-		# print(data)
+		
+		# first handle sending node which is the first entry in the list
+		# set cost from sending node to correct cost instead of 0 from sedner's routing table
 
 		sender = data[0]
 		sending_node = sender[0]
