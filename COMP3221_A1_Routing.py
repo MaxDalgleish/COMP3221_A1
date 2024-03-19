@@ -73,7 +73,8 @@ class ListeningThread(threading.Thread):
 				print("Received: ", data, end="")
 				print(" arriving at ", self.port_no)
 
-				self.q.put(data)
+
+				self.q.put(data['routing_data'])
 
 			# Send the data back to the client
 			conn.close()
@@ -110,30 +111,36 @@ class SendingThread(threading.Thread):
 			time.sleep(10)
 
 			# Ensure that the socket properly connects to the system
-			
 			for data in self.neighbours.values():
+				retry_count = 0
 				# print("Trying " + data[1] + " from " + self.node_id)
 				try: 
-					# Create a socket and connect
-					s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-					s.connect(('localhost', int(data[1])))
-					# print("Connected to: " + data[1] + " from " + self.node_id)
-					
-					# put routing tablen into list
-					routing_list = [(key, value['distance']) for key, value in self.routing_table.items()]
-
-					# Sort the list by putting sending node at start
-					routing_list.sort(key=lambda x: (x[0] != self.node_id, x[0]))
-
-					# Convert the list to json
-					routing_json = json.dumps(routing_list)
-
-					# Send the routiong table data
-					s.sendall(routing_json.encode("utf-8"))
-
+					while retry_count < MAX_RETRIES:
+						# Create a socket and connect
+						s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+						s.connect(('localhost', int(data[1])))
+						# print("Connected to: " + data[1] + " from " + self.node_id)
 						
-					s.close()
-					break
+						# put routing tablen into list
+						routing_list = [(key, value['distance']) for key, value in self.routing_table.items()]
+
+						# Sort the list by putting sending node at start
+						routing_list.sort(key=lambda x: (x[0] != self.node_id, x[0]))
+
+						routing_json = {
+							'port': self.node_id,
+							'type': 'routing_table',
+							'routing_data': routing_list
+						}
+						# Convert the list to json
+						routing_json = json.dumps(routing_json)
+
+						# Send the routiong table data
+						s.sendall(routing_json.encode("utf-8"))
+
+							
+						s.close()
+						break
 							
 				except:
 					print("Error: Connection refused to " + data[1] + " from " + self.node_id + " retrying...")
