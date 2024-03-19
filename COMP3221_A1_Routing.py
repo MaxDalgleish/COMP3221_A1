@@ -70,10 +70,10 @@ class ListeningThread(threading.Thread):
 			if data['type'] == 'command':
 				print(" Received Command from controller, ", data['command'])
 			else:
-				print("Received: ", data, end="")
-				print(" arriving at ", self.port_no)
+				# print("Received: ", data, end="")
+				# print(" arriving at ", self.port_no)
 
-
+				# Put the data into the queue for routing thread
 				self.q.put(data['routing_data'])
 
 			# Send the data back to the client
@@ -122,7 +122,7 @@ class SendingThread(threading.Thread):
 						# print("Connected to: " + data[1] + " from " + self.node_id)
 						
 						# put routing tablen into list
-						routing_list = [(key, value['distance']) for key, value in self.routing_table.items()]
+						routing_list = [(key, value['distance'], value['path']) for key, value in self.routing_table.items()]
 
 						# Sort the list by putting sending node at start
 						routing_list.sort(key=lambda x: (x[0] != self.node_id, x[0]))
@@ -203,9 +203,21 @@ class RoutingTable(threading.Thread):
 			cost = float(neighbour[1]) + float(sending_cost)
 			if routing_table[node]['distance'] > float(cost):
 				routing_table[node]['distance'] = float(cost)
-				print("Node: " + node + " Cost: " + str(cost))
-				print("Routing Table: " + self.node_id)
-				print(self.routing_table)
+				path = sending_node + node
+				routing_table[node]['path'] = path
+				
+				# print statements
+				print("I am Node" + self.node_id)
+				for destination, data in self.routing_table.items():
+					if self.node_id == destination:
+						continue
+					
+					least_cost_path = self.node_id + data['path']
+					link_cost = data['distance']
+					
+					# Print the formatted output
+					print(f"Least cost path from {self.node_id} to {destination}: {least_cost_path}, link cost: {link_cost}.")
+				
 
 
 def valid_input_check():
@@ -266,21 +278,22 @@ def main():
 		
 	# Setup routing table
 	routing_table = {
-			'A': {'distance':float('inf')},
-			'B': {'distance':float('inf')},
-			'C': {'distance':float('inf')},
-			'D': {'distance':float('inf')},
-			'E': {'distance':float('inf')},
-			'F': {'distance':float('inf')},
-			'G': {'distance':float('inf')},
-			'H': {'distance':float('inf')},
-			'I': {'distance':float('inf')},
-			'J': {'distance':float('inf')}
-		}
+		'A': {'distance': float('inf'), 'path': ""},
+		'B': {'distance': float('inf'), 'path': ""},
+		'C': {'distance': float('inf'), 'path': ""},
+		'D': {'distance': float('inf'), 'path': ""},
+		'E': {'distance': float('inf'), 'path': ""},
+		'F': {'distance': float('inf'), 'path': ""},
+		'G': {'distance': float('inf'), 'path': ""},
+		'H': {'distance': float('inf'), 'path': ""},
+		'I': {'distance': float('inf'), 'path': ""},
+		'J': {'distance': float('inf'), 'path': ""}
+	}
 	routing_table[node_id]['distance'] = float(0)
 	# input neighbours into the routing table
 	for neighbour in neighbours:
 		routing_table[neighbour]['distance'] = float(neighbours[neighbour][0])
+		routing_table[neighbour]['path'] = neighbour
 
 	# inital routing table
 	print("Initial Routing Table " + node_id)
