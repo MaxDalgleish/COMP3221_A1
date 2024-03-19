@@ -201,13 +201,14 @@ class RoutingTable(threading.Thread):
 				continue
 			node = neighbour[0]
 			cost = float(neighbour[1]) + float(sending_cost)
+			cost = round(cost, 2)
 			if routing_table[node]['distance'] > float(cost):
 				routing_table[node]['distance'] = float(cost)
 				path = sending_node + node
 				routing_table[node]['path'] = path
 				
 				# print statements
-				print("I am Node" + self.node_id)
+				print("I am Node " + self.node_id)
 				for destination, data in self.routing_table.items():
 					if self.node_id == destination:
 						continue
