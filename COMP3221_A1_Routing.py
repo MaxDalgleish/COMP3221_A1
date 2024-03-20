@@ -190,7 +190,9 @@ class RoutingTable(threading.Thread):
 			if node[0] == self.node_id:
 				sending_cost = float(node[1])
 				break
-		routing_table[sending_node]['distance'] = sending_cost
+		if routing_table[sending_node]['distance'] > sending_cost:
+			routing_table[sending_node]['path'] = sending_node
+			routing_table[sending_node]['distance'] = sending_cost
 		data = data[1:]
 
 		# put sending nodes neighbours into the routing table
@@ -204,7 +206,7 @@ class RoutingTable(threading.Thread):
 			cost = round(cost, 2)
 			if routing_table[node]['distance'] > float(cost):
 				routing_table[node]['distance'] = float(cost)
-				path = sending_node + node
+				path = sending_node + neighbour[2]
 				routing_table[node]['path'] = path
 				
 				# print statements
