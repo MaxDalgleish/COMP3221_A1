@@ -12,11 +12,12 @@ Node_up = True
 
 
 class ListeningThread(threading.Thread):
-	def __init__(self, port_no, q):
+	def __init__(self, port_no, routing_table):
 		threading.Thread.__init__(self)
 		self._stop = threading.Event()
 		self.port_no = port_no
-		self.q = q
+		self.routing_table = routing_table
+		# self.q = q
 	
 	def stop(self):
 		self._stop.set()
@@ -25,7 +26,6 @@ class ListeningThread(threading.Thread):
 		return self._stop.is_set()
 
 	def run(self):
-		print("ListeningThread started")
 		# Create a socket
 		# Ensure that the socket properly connects to the system
 		retry_count = 0
@@ -52,6 +52,7 @@ class ListeningThread(threading.Thread):
 			# Checking if the Node should be Receiving messages
 			if not Node_up:
 				continue
+
 			s.settimeout(3)
 			# Accept the incoming connection
 			try:
@@ -64,24 +65,27 @@ class ListeningThread(threading.Thread):
 			data = json.loads(conn.recv(1024).decode())
 			if not data:
 				print("Error: No data received listen")
-				break
+				continue
 
 			# Check if the data being received is from the controller
 			if data['type'] == 'command':
 				print(" Received Command from controller, ", data['command'])
-			else:
-				print("Received: ", data, end="")
-				print(" arriving at ", self.port_no)
+			elif data['type'] == 'routing_table':
 
-
-				self.q.put(data['routing_data'])
+				# self.q.put(data['routing_data'])
+				routing_data = data['routing_data']
+				for node in routing_data:
+					if node == self.port_no:
+						continue
+					if node not in self.routing_table:
+						self.routing_table[node] = routing_data[node]
 
 			# Send the data back to the client
 			conn.close()
 
 
 class SendingThread(threading.Thread):
-	def __init__(self, neighbours, node_id , routing_table):
+	def __init__(self, neighbours, node_id, routing_table):
 		threading.Thread.__init__(self)
 		self._stop = threading.Event()
 		self.neighbours = neighbours
@@ -95,7 +99,6 @@ class SendingThread(threading.Thread):
 		return self._stop.is_set()
 
 	def run(self):
-		print("SendingThread started")
 		while (1):
 			# Threading stopping should be before the intialization of the socket
 			# Otherwise socket connects to a non-existing port
@@ -108,29 +111,25 @@ class SendingThread(threading.Thread):
 				continue
 
 			# Wait the Mandatory 10 seconds before sending a message
-			time.sleep(10)
+			time.sleep(3)
 
 			# Ensure that the socket properly connects to the system
-			for data in self.neighbours.values():
+			for neighbour in self.neighbours.values():
 				retry_count = 0
 				# print("Trying " + data[1] + " from " + self.node_id)
 				try: 
 					while retry_count < MAX_RETRIES:
 						# Create a socket and connect
 						s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-						s.connect(('localhost', int(data[1])))
+						s.connect(('localhost', int(neighbour[1])))
 						# print("Connected to: " + data[1] + " from " + self.node_id)
 						
-						# put routing tablen into list
-						routing_list = [(key, value['distance']) for key, value in self.routing_table.items()]
-
-						# Sort the list by putting sending node at start
-						routing_list.sort(key=lambda x: (x[0] != self.node_id, x[0]))
 
 						routing_json = {
 							'port': self.node_id,
 							'type': 'routing_table',
-							'routing_data': routing_list
+							'time': time.time(),
+							'routing_data': self.routing_table
 						}
 						# Convert the list to json
 						routing_json = json.dumps(routing_json)
@@ -143,18 +142,17 @@ class SendingThread(threading.Thread):
 						break
 							
 				except:
-					print("Error: Connection refused to " + data[1] + " from " + self.node_id + " retrying...")
+					print("Error: Connection refused to " + neighbour[1] + " from " + self.node_id + " retrying...")
 					retry_count += 1
 					time.sleep(0.5)
 			
 
 class RoutingTable(threading.Thread):
-	def __init__(self, neighbours, q, node_id, routing_table):
+	def __init__(self, neighbours, node_id, routing_table):
 		threading.Thread.__init__(self)
 		self._stop = threading.Event()
 		self.neighbours = neighbours
 		self.routing_table = {}
-		self.q = q
 		self.node_id = node_id
 		self.routing_table = routing_table
 	
@@ -165,47 +163,71 @@ class RoutingTable(threading.Thread):
 		return self._stop.is_set()
 	
 	def run(self):
-		print("RoutingTable started")
 
 		while (1):
 			if self.stopped():
 				print(self.name + " is stopping")
 				return
-			
-			# Wait for soemthing to be put in the queue
-			if self.q.empty():
-				pass
-			else:
-				data = self.q.get()
-				self.calculate(data, self.routing_table)
-
-	def calculate(self, data, routing_table):
+			# Check if the Node is currently up
+			if not Node_up:
+				time.sleep(10)
+				continue
 		
-		# first handle sending node which is the first entry in the list
-		# set cost from sending node to correct cost instead of 0 from sedner's routing table
+			self.calculate(self.routing_table, self.node_id)
+			time.sleep(3)
 
-		sender = data[0]
-		sending_node = sender[0]
-		for node in data[1:]:
-			if node[0] == self.node_id:
-				sending_cost = float(node[1])
-				break
-		routing_table[sending_node]['distance'] = sending_cost
-		data = data[1:]
 
-		# put sending nodes neighbours into the routing table
-		for neighbour in data:
-			if neighbour[0] == self.node_id:
-				continue
-			if neighbour[1] == float('inf'):
-				continue
-			node = neighbour[0]
-			cost = float(neighbour[1]) + float(sending_cost)
-			if routing_table[node]['distance'] > float(cost):
-				routing_table[node]['distance'] = float(cost)
-				print("Node: " + node + " Cost: " + str(cost))
-				print("Routing Table: " + self.node_id)
-				print(self.routing_table)
+			
+			
+
+	def calculate(self, routing_table, node_id):
+
+		visited = []
+		visited.append(node_id)
+		dijkstras = {}
+		active_nodes = dict(routing_table[node_id])
+		for key in active_nodes.keys():
+			active_nodes[key] = [active_nodes[key], node_id]
+		smallest_node_distance = min(active_nodes.items(), key=lambda x: x[1][0])
+
+		# {'A': [length, predecessor]}
+		dijkstras[smallest_node_distance[0]] = [smallest_node_distance[1][0], smallest_node_distance[1][1]]
+		visited.append(smallest_node_distance[0])
+		while len(visited) != len(routing_table):
+			for key, value in routing_table[smallest_node_distance[0]].items():
+				if key in active_nodes:
+					if float(active_nodes[key][0]) > (float(value) + float(smallest_node_distance[1][0])):
+						active_nodes[key] = [(float(value) + float(smallest_node_distance[1][0])), smallest_node_distance[0]]
+				else:
+					active_nodes[key] = [float(value) + float(smallest_node_distance[1][0]), smallest_node_distance[0]]
+			filtered_items = {k: v for k, v in active_nodes.items() if k not in visited}
+			smallest_node_distance = min(filtered_items.items(), key=lambda x: float(x[1][0]))
+			dijkstras[smallest_node_distance[0]] = [smallest_node_distance[1][0], smallest_node_distance[1][1]]
+			visited.append(smallest_node_distance[0])
+		sorted_dict = {key: dijkstras[key] for key in sorted(dijkstras.keys())}
+		self.print_routes(sorted_dict)
+
+	def print_routes(self, dijkstras):
+		print("I am Node " + self.node_id)
+		for key, value in dijkstras.items():
+			result = self.find_path(dijkstras, self.node_id, key)
+			print("Least cost path from " + self.node_id + " to " + key + ": " + result + ", link cost: " + str(round(float(value[0]), 3)))
+
+	
+	def find_path(self, data, start_node, end_node):
+		path = [end_node]  # Start with the end node
+		current_node = end_node
+
+		# Traverse backwards from the end node to the start node
+		while current_node != start_node:
+			# Get the predecessor of the current node
+			current_node = data[current_node][1]
+			path.append(current_node)  # Add the predecessor to the path
+
+		# Reverse the path to get the correct order
+		path.reverse()
+		return ''.join(path)
+		
 
 
 def valid_input_check():
@@ -265,41 +287,31 @@ def main():
 		neighbours[line[0]] = [line[1], line[2]]
 		
 	# Setup routing table
-	routing_table = {
-			'A': {'distance':float('inf')},
-			'B': {'distance':float('inf')},
-			'C': {'distance':float('inf')},
-			'D': {'distance':float('inf')},
-			'E': {'distance':float('inf')},
-			'F': {'distance':float('inf')},
-			'G': {'distance':float('inf')},
-			'H': {'distance':float('inf')},
-			'I': {'distance':float('inf')},
-			'J': {'distance':float('inf')}
-		}
-	routing_table[node_id]['distance'] = float(0)
-	# input neighbours into the routing table
+	temp = {}
 	for neighbour in neighbours:
-		routing_table[neighbour]['distance'] = float(neighbours[neighbour][0])
+		temp[neighbour] = neighbours[neighbour][0]
+	routing_table = {node_id: temp}
 
-	# inital routing table
-	print("Initial Routing Table " + node_id)
-	print(routing_table)
-		
-	# create queue for thread communication
-	q = Queue()
 	
-	router = RoutingTable(neighbours , q, node_id , routing_table)
-	router.start()
-	
-	listener = ListeningThread(int(port_no), q)
+	listener = ListeningThread(int(port_no), routing_table)
 	listener.start()
 
 	sender = SendingThread(neighbours, node_id, routing_table)
 	sender.start()
 
+	try:
+		time.sleep(15)
+	except KeyboardInterrupt:
+		# End the Program
+		print("Interrupted")
+		listener.stop()
+		sender.stop()
+		return
+
 
 	try:
+		router = RoutingTable(neighbours , node_id, routing_table)
+		router.start()
 		while(1):
 			pass
 	except KeyboardInterrupt:
