@@ -1,7 +1,10 @@
+{'G': {'A': ['4.1', 1], 'D': ['1.9', 1]}}
 Enter a command from the list
 1: disable_node
 2: enable_node
 3: change_cost
+{'A': {'D': ['1.3', 1], 'G': ['4.1', 1]}}
+{'D': {'A': ['1.3', 1], 'G': ['1.9', 1]}, 'A': {'D': ['1.3', 1], 'G': ['4.1', 1]}}
 I am Node G
 Least cost path from G to A: GDA, link cost: 3.2
 Least cost path from G to D: GD, link cost: 1.9
@@ -17,11 +20,36 @@ Least cost path from G to D: GD, link cost: 1.9
 I am Node G
 Least cost path from G to A: GDA, link cost: 3.2
 Least cost path from G to D: GD, link cost: 1.9
-Error: Connection refused to 6000 from G retrying...
+I am Node G
+Least cost path from G to A: GDA, link cost: 3.2
+Least cost path from G to D: GD, link cost: 1.9
+I am Node G
+Least cost path from G to A: GDA, link cost: 3.2
+Least cost path from G to D: GD, link cost: 1.9
+I am Node G
+Least cost path from G to A: GDA, link cost: 3.2
+Least cost path from G to D: GD, link cost: 1.9
+I am Node G
+Least cost path from G to A: GDA, link cost: 3.2
+Least cost path from G to D: GD, link cost: 1.9
+I am Node G
+Least cost path from G to A: GDA, link cost: 3.2
+Least cost path from G to D: GD, link cost: 1.9
+I am Node G
+Least cost path from G to A: GDA, link cost: 3.2
+Least cost path from G to D: GD, link cost: 1.9
+I am Node G
+Least cost path from G to A: GDA, link cost: 3.2
+Least cost path from G to D: GD, link cost: 1.9
+I am Node G
+Least cost path from G to A: GDA, link cost: 3.2
+Least cost path from G to D: GD, link cost: 1.9
+I am Node G
+Least cost path from G to A: GDA, link cost: 3.2
+Least cost path from G to D: GD, link cost: 1.9
+I am Node G
+Least cost path from G to A: GDA, link cost: 3.2
+Least cost path from G to D: GD, link cost: 1.9
 You pressed Ctrl+C!
 Interrupted
-Thread-4 is stopping
-Thread-1 is stopping listen
-Error: Connection refused to 6000 from G retrying...
-Error: Connection refused to 6003 from G retrying...
-Thread-2 is stopping sending1
+You pressed Ctrl+C!
