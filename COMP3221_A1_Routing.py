@@ -69,7 +69,7 @@ class ListeningThread(threading.Thread):
 
 			# Check if the data being received is from the controller
 			if data['type'] == 'command':
-				print(" Received Command from controller, ", data['command'])
+				print(" Received Command from controller, ", data['command_values'])
 			elif data['type'] == 'routing_table':
 
 				# self.q.put(data['routing_data'])

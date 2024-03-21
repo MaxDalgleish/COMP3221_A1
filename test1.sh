@@ -6,6 +6,8 @@ PIDA=$!
 PIDD=$!
 (python3 COMP3221_A1_Routing.py G 6006 Config_Files/Zconfig.txt > g.out) &
 PIDG=$!
+sleep 5
+(echo "6000 1" | python3 network_controller.py > x.out) &
 
 sleep 30
 
