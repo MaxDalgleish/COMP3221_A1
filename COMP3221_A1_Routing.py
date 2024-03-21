@@ -149,8 +149,9 @@ class SendingThread(threading.Thread):
 					time.sleep(0.5)
 				if retry_count == MAX_RETRIES:
 					print("Error: Maximum retries reached sending")
-					# set the link cost to infinity
-					self.routing_table[self.node_id][neighbour[0]] = float('inf')
+					
+					# set the link cost to infinity if can not reach node
+					
 			
 
 class RoutingTable(threading.Thread):
