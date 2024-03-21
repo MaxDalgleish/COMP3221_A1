@@ -1,0 +1,5 @@
+Enter a port and command from the list
+1: disable_node
+2: enable_node
+3: change_cost
+6000

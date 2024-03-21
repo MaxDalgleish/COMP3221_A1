@@ -28,6 +28,7 @@ class ListeningThread(threading.Thread):
 	def run(self):
 		# Create a socket
 		# Ensure that the socket properly connects to the system
+		global Node_up
 		retry_count = 0
 		while retry_count < MAX_RETRIES:
 			try: 
@@ -68,9 +69,10 @@ class ListeningThread(threading.Thread):
 				continue
 
 			# Check if the data being received is from the controller
-			if data['type'] == 'command':
-				print(" Received Command from controller, ", data['command'])
-			elif data['type'] == 'routing_table':
+			#if data['type'] == 'command':
+				#print(" Received Command from controller, ", data['command_values'])
+			#if data['type'] == 'routing_table':
+			else:
 
 				# self.q.put(data['routing_data'])
 				routing_data = data['routing_data']
@@ -99,6 +101,7 @@ class SendingThread(threading.Thread):
 		return self._stop.is_set()
 
 	def run(self):
+		global Node_up
 		while (1):
 			# Threading stopping should be before the intialization of the socket
 			# Otherwise socket connects to a non-existing port
@@ -137,7 +140,6 @@ class SendingThread(threading.Thread):
 						# Send the routiong table data
 						s.sendall(routing_json.encode("utf-8"))
 
-							
 						s.close()
 						break
 							
@@ -145,6 +147,10 @@ class SendingThread(threading.Thread):
 					print("Error: Connection refused to " + neighbour[1] + " from " + self.node_id + " retrying...")
 					retry_count += 1
 					time.sleep(0.5)
+				if retry_count == MAX_RETRIES:
+					print("Error: Maximum retries reached sending")
+					# set the link cost to infinity
+					self.routing_table[self.node_id][neighbour[0]] = float('inf')
 			
 
 class RoutingTable(threading.Thread):
@@ -177,8 +183,6 @@ class RoutingTable(threading.Thread):
 			time.sleep(3)
 
 
-			
-			
 
 	def calculate(self, routing_table, node_id):
 
@@ -227,7 +231,39 @@ class RoutingTable(threading.Thread):
 		# Reverse the path to get the correct order
 		path.reverse()
 		return ''.join(path)
+
+class ReadingThread(threading.Thread):
+	def __init__(self, node_id):
+		threading.Thread.__init__(self)
+		self._stop = threading.Event()
+		self.node_id = node_id
+	
+	def stop(self):
+		self._stop.set()
+
+	def stopped(self):
+		return self._stop.is_set()
 		
+	def run(self):
+
+		global Node_up
+
+		while(1):
+			if self.stopped():
+				print(self.name + " is stopping sending1")
+				return
+			# read input from command line
+			print("Enter a command from the list")
+			command = input("1: disable_node\n2: enable_node\n3: change_cost\n")
+			command = command.split(" ")
+			
+
+			if Node_up and command[0] == "1":
+				Node_up = False
+				print(self.node_id + " is down")
+			elif not Node_up and command[0] == "2":
+				Node_up = True
+				print(self.node_id + " is up")
 
 
 def valid_input_check():
@@ -276,7 +312,6 @@ def main():
 	node_id, port_no, config_file = sys.argv[1], sys.argv[2], sys.argv[3]
 
 	# Parse the configuration file
-
 	neighbours = {}
 	file_data = []
 	for line in open(config_file, "r"):
@@ -292,12 +327,14 @@ def main():
 		temp[neighbour] = neighbours[neighbour][0]
 	routing_table = {node_id: temp}
 
-	
 	listener = ListeningThread(int(port_no), routing_table)
 	listener.start()
 
 	sender = SendingThread(neighbours, node_id, routing_table)
 	sender.start()
+
+	reader = ReadingThread(node_id)
+	reader.start()
 
 	try:
 		time.sleep(15)
