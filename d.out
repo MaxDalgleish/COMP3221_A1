@@ -1,55 +1,23 @@
-{'D': {'A': ['1.3', 1], 'G': ['1.9', 1]}}
 Enter a command from the list
 1: disable_node
 2: enable_node
 3: change_cost
-{'A': {'D': ['1.3', 1], 'G': ['4.1', 1]}}
-{'G': {'A': ['4.1', 1], 'D': ['1.9', 1]}, 'A': {'D': ['1.3', 1], 'G': ['4.1', 1]}, 'D': {'A': ['1.3', 1], 'G': ['1.9', 1]}}
+
+Error: Connection refused to 6000 from D retrying...
 I am Node D
-Least cost path from D to A: DA, link cost: 1.3
 Least cost path from D to G: DG, link cost: 1.9
 I am Node D
-Least cost path from D to A: DA, link cost: 1.3
+Least cost path from D to G: DG, link cost: 1.9
+Error: Connection refused to 6000 from D retrying...
+I am Node D
 Least cost path from D to G: DG, link cost: 1.9
 I am Node D
-Least cost path from D to A: DA, link cost: 1.3
 Least cost path from D to G: DG, link cost: 1.9
 I am Node D
-Least cost path from D to A: DA, link cost: 1.3
-Least cost path from D to G: DG, link cost: 1.9
-I am Node D
-Least cost path from D to A: DA, link cost: 1.3
-Least cost path from D to G: DG, link cost: 1.9
-I am Node D
-Least cost path from D to A: DA, link cost: 1.3
-Least cost path from D to G: DG, link cost: 1.9
-I am Node D
-Least cost path from D to A: DA, link cost: 1.3
-Least cost path from D to G: DG, link cost: 1.9
-I am Node D
-Least cost path from D to A: DA, link cost: 1.3
-Least cost path from D to G: DG, link cost: 1.9
-I am Node D
-Least cost path from D to A: DA, link cost: 1.3
-Least cost path from D to G: DG, link cost: 1.9
-I am Node D
-Least cost path from D to A: DA, link cost: 1.3
-Least cost path from D to G: DG, link cost: 1.9
-I am Node D
-Least cost path from D to A: DA, link cost: 1.3
-Least cost path from D to G: DG, link cost: 1.9
-I am Node D
-Least cost path from D to A: DA, link cost: 1.3
-Least cost path from D to G: DG, link cost: 1.9
-I am Node D
-Least cost path from D to A: DA, link cost: 1.3
-Least cost path from D to G: DG, link cost: 1.9
-I am Node D
-Least cost path from D to A: DA, link cost: 1.3
-Least cost path from D to G: DG, link cost: 1.9
-I am Node D
-Least cost path from D to A: DA, link cost: 1.3
 Least cost path from D to G: DG, link cost: 1.9
 You pressed Ctrl+C!
-Interrupted
-You pressed Ctrl+C!
+Thread-3 is stopping sending
+Thread-4 is stopping
+Error: Connection refused to 6000 from D retrying...
+Thread-1 is stopping listen
+Thread-2 is stopping sending
