@@ -1,0 +1,11 @@
+Enter a command from the list
+1: disable_node
+2: enable_node
+3: change_cost
+
+A is down
+You pressed Ctrl+C!
+Thread-3 is stopping sending
+Thread-1 is stopping listen
+Thread-4 is stopping
+Thread-2 is stopping sending

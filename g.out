@@ -3,21 +3,10 @@ Enter a command from the list
 2: enable_node
 3: change_cost
 
-Error: Connection refused to 6000 from G retrying...
-I am Node G
-Least cost path from G to D: GD, link cost: 1.9
-I am Node G
-Least cost path from G to D: GD, link cost: 1.9
-Error: Connection refused to 6000 from G retrying...
-I am Node G
-Least cost path from G to D: GD, link cost: 1.9
-I am Node G
-Least cost path from G to D: GD, link cost: 1.9
-I am Node G
-Least cost path from G to D: GD, link cost: 1.9
 You pressed Ctrl+C!
 Thread-3 is stopping sending
+Thread-1 is stopping listen
 Thread-4 is stopping
 Error: Connection refused to 6000 from G retrying...
+Error: Connection refused to 6003 from G retrying...
 Thread-2 is stopping sending
-Thread-1 is stopping listen

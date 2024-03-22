@@ -228,7 +228,7 @@ class RoutingTable(threading.Thread):
 		dijkstras[smallest_node_distance[0]] = [smallest_node_distance[1][0], smallest_node_distance[1][1]]
 		visited.append(smallest_node_distance[0])
 		# While not every node has been visited
-		while len(visited) != len(routing_table):
+		while len(visited) <= len(routing_table):
 			for key, value in routing_table[smallest_node_distance[0]].items():
 				if key in active_nodes:
 					# If cost is higher than new cost, replace it
